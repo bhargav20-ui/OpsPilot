@@ -1,84 +1,29 @@
-
 import unittest
-from opspilot.alerts import check_website_alerts
-from opspilot.alerts import check_resource_alerts
+
+from opspilot.alerts import build_alerts
 
 
-class TestResourceAlerts(unittest.TestCase):
+class AlertTests(unittest.TestCase):
+    def setUp(self):
+        self.websites = [{"url": "https://example.com", "status": "online", "http_status": 200, "error": None}]
 
-    def test_high_cpu_triggers_alert(self):
-        metrics = {
-            "cpu_usage": 95.0,
-            "ram_usage": 50.0,
-        }
-
-        alerts = check_resource_alerts(metrics)
-
-        self.assertTrue(any("CPU usage is high" in alert for alert in alerts))
-
-    def test_high_ram_triggers_alert(self):
-        metrics = {
-            "cpu_usage": 30.0,
-            "ram_usage": 92.0,
-        }
-
-        alerts = check_resource_alerts(metrics)
-
-        self.assertTrue(any("RAM usage is high" in alert for alert in alerts))
-
-    def test_normal_usage_has_no_warning(self):
-        metrics = {
-            "cpu_usage": 30.0,
-            "ram_usage": 50.0,
-        }
-
-        alerts = check_resource_alerts(metrics)
-
-        self.assertEqual(len(alerts), 1)
-        self.assertIn("within configured thresholds", alerts[0])
-
-    def test_both_resources_trigger_alerts(self):
-        metrics = {
-            "cpu_usage": 95.0,
-            "ram_usage": 92.0,
-        }
-
-        alerts = check_resource_alerts(metrics)
-
-        self.assertEqual(len(alerts), 2)
-
-
-class TestWebsiteAlerts(unittest.TestCase):
-
-    def test_online_website_does_not_trigger_alert(self):
-        results = {
-            "https://example.com": "ONLINE (HTTP 200) | Response: 20 ms",
-        }
-
-        alerts = check_website_alerts(results)
-
+    def test_no_alerts_under_threshold(self):
+        alerts = build_alerts({"cpu_percent": 20, "ram_percent": 40}, self.websites, 80, 85)
         self.assertEqual(alerts, [])
 
-    def test_connection_failure_triggers_alert(self):
-        results = {
-            "https://broken.example": "CHECK FAILED | Connection error",
-        }
-
-        alerts = check_website_alerts(results)
-
+    def test_cpu_alert(self):
+        alerts = build_alerts({"cpu_percent": 90, "ram_percent": 40}, self.websites, 80, 85)
         self.assertEqual(len(alerts), 1)
-        self.assertIn("https://broken.example", alerts[0])
+        self.assertIn("CPU", alerts[0]["message"])
 
-    def test_http_error_triggers_alert(self):
-        results = {
-            "https://missing.example": "SERVER RESPONDED (HTTP 404)",
-        }
+    def test_ram_alert(self):
+        alerts = build_alerts({"cpu_percent": 20, "ram_percent": 90}, self.websites, 80, 85)
+        self.assertIn("RAM", alerts[0]["message"])
 
-        alerts = check_website_alerts(results)
-
-        self.assertEqual(len(alerts), 1)
-        self.assertIn("HTTP 404", alerts[0])
-
+    def test_unreachable_website_is_critical(self):
+        failed = [{"url": "https://example.com", "status": "unreachable", "http_status": None, "error": "timed out"}]
+        alerts = build_alerts({"cpu_percent": 20, "ram_percent": 40}, failed, 80, 85)
+        self.assertEqual(alerts[0]["severity"], "critical")
 
 
 if __name__ == "__main__":

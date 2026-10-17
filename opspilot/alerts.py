@@ -1,56 +1,32 @@
-
-"""Alerting functions for OpsPilot."""
-
-from opspilot.config import (
-    CPU_ALERT_THRESHOLD,
-    RAM_ALERT_THRESHOLD,
-)
+"""Rule-based alerts for system resources and website checks."""
+from __future__ import annotations
 
 
-def check_resource_alerts(metrics):
-    """Return alerts when CPU or RAM usage reaches its threshold."""
+def build_alerts(metrics: dict, website_results: list[dict], cpu_threshold: float, ram_threshold: float) -> list[dict]:
     alerts = []
+    cpu = metrics.get("cpu_percent", 0)
+    ram = metrics.get("ram_percent", 0)
 
-    cpu_usage = metrics["cpu_usage"]
-    ram_usage = metrics["ram_usage"]
-
-    if cpu_usage >= CPU_ALERT_THRESHOLD:
-        alerts.append(
-            f"WARNING: CPU usage is high ({cpu_usage}%). "
-            f"Threshold: {CPU_ALERT_THRESHOLD}%."
-        )
-
-    if ram_usage >= RAM_ALERT_THRESHOLD:
-        alerts.append(
-            f"WARNING: RAM usage is high ({ram_usage}%). "
-            f"Threshold: {RAM_ALERT_THRESHOLD}%."
-        )
-
-    if not alerts:
-        alerts.append("System resource usage is within configured thresholds.")
-
-    return alerts
-
-
-def display_resource_alerts(metrics):
-    """Print resource alerts in a readable format."""
-    print("\n" + "=" * 45)
-    print("             Resource Alerts")
-    print("=" * 45)
-
-    for alert in check_resource_alerts(metrics):
-        print(alert)
-
-
-def check_website_alerts(website_results):
-    """Return alerts for websites that are not fully online."""
-    alerts = []
-
-    for url, result in website_results.items():
-        if "ONLINE (HTTP" not in result:
-            alerts.append(
-                f"WARNING: Website health check needs attention: "
-                f"{url} — {result}"
-            )
-
+    if cpu >= cpu_threshold:
+        alerts.append({
+            "severity": "warning",
+            "source": "system",
+            "message": f"CPU usage is high ({cpu:.1f}%; threshold {cpu_threshold:.1f}%).",
+        })
+    if ram >= ram_threshold:
+        alerts.append({
+            "severity": "warning",
+            "source": "system",
+            "message": f"RAM usage is high ({ram:.1f}%; threshold {ram_threshold:.1f}%).",
+        })
+    for result in website_results:
+        if result["status"] != "online":
+            status = result.get("http_status")
+            detail = f"HTTP {status}" if status is not None else result.get("error") or "no response"
+            alerts.append({
+                "severity": "critical" if result["status"] == "unreachable" else "warning",
+                "source": "website",
+                "url": result["url"],
+                "message": f"Website check issue for {result['url']}: {detail}.",
+            })
     return alerts

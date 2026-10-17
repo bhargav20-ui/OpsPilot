@@ -1,32 +1,22 @@
-from datetime import datetime
+"""Collect live system metrics."""
+from __future__ import annotations
+
 import platform
+import socket
+from datetime import datetime, timezone
 
 import psutil
 
 
-def get_system_metrics():
-    """Collect basic system information and resource usage."""
-    cpu_usage = psutil.cpu_percent(interval=1)
+def get_system_metrics() -> dict:
+    """Return a snapshot of current system utilization."""
     memory = psutil.virtual_memory()
-
     return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "computer": platform.node(),
-        "operating_system": platform.system(),
-        "cpu_usage": cpu_usage,
-        "ram_usage": memory.percent,
+        "timestamp": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "hostname": socket.gethostname(),
+        "operating_system": f"{platform.system()} {platform.release()}",
+        "cpu_percent": round(psutil.cpu_percent(interval=0.2), 1),
+        "ram_percent": round(memory.percent, 1),
         "available_ram_gb": round(memory.available / (1024 ** 3), 2),
+        "total_ram_gb": round(memory.total / (1024 ** 3), 2),
     }
-
-
-def display_system_metrics(metrics):
-    """Display collected system metrics."""
-    print("\n" + "=" * 45)
-    print("             OpsPilot Monitor")
-    print("=" * 45)
-    print(f"Time: {metrics['timestamp']}")
-    print(f"Operating System: {metrics['operating_system']}")
-    print(f"Computer: {metrics['computer']}")
-    print(f"CPU Usage: {metrics['cpu_usage']}%")
-    print(f"RAM Usage: {metrics['ram_usage']}%")
-    print(f"Available RAM: {metrics['available_ram_gb']:.2f} GB")

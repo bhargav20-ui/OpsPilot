@@ -1,54 +1,42 @@
+"""Website availability checks with explicit timeout and status classification."""
+from __future__ import annotations
 
 import time
-import urllib.error
-import urllib.request
-
-from opspilot.logger_config import get_logger
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
-logger = get_logger("OpsPilot.HealthChecker")
-
-
-def check_website(url):
-    """Check website availability, measure response time, and log results."""
-    print(f"\nChecking: {url}")
-    start_time = time.perf_counter()
-
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "OpsPilot/1.0"},
-    )
-
+def check_website(url: str, timeout: float = 8.0, user_agent: str = "OpsPilot/1.0") -> dict:
+    """Check a URL and return structured status, latency, and error information."""
+    request = Request(url, headers={"User-Agent": user_agent}, method="GET")
+    started = time.perf_counter()
     try:
-        with urllib.request.urlopen(request, timeout=5) as response:
-            elapsed = (time.perf_counter() - start_time) * 1000
-            result = (
-                f"ONLINE (HTTP {response.status})"
-                f" | Response: {elapsed:.2f} ms"
-            )
-            logger.info(
-                "Website check succeeded | url=%s | status=%s | response_ms=%.2f",
-                url,
-                response.status,
-                elapsed,
-            )
-
-    except urllib.error.HTTPError as error:
-        elapsed = (time.perf_counter() - start_time) * 1000
-        result = (
-            f"SERVER RESPONDED (HTTP {error.code})"
-            f" | Response: {elapsed:.2f} ms"
-        )
-        logger.warning(
-            "Website returned HTTP error | url=%s | status=%s | response_ms=%.2f",
-            url,
-            error.code,
-            elapsed,
-        )
-
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
-        result = f"CHECK FAILED | {error}"
-        logger.error("Website check failed | url=%s | error=%s", url, error)
-
-    print(f"Result: {result}")
-    return result
+        with urlopen(request, timeout=timeout) as response:
+            latency_ms = round((time.perf_counter() - started) * 1000, 2)
+            status_code = int(response.status)
+            return {
+                "url": url,
+                "status": "online" if 200 <= status_code < 400 else "http_error",
+                "http_status": status_code,
+                "response_time_ms": latency_ms,
+                "error": None,
+            }
+    except HTTPError as exc:
+        latency_ms = round((time.perf_counter() - started) * 1000, 2)
+        return {
+            "url": url,
+            "status": "http_error",
+            "http_status": int(exc.code),
+            "response_time_ms": latency_ms,
+            "error": str(exc.reason or exc),
+        }
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        latency_ms = round((time.perf_counter() - started) * 1000, 2)
+        reason = getattr(exc, "reason", exc)
+        return {
+            "url": url,
+            "status": "unreachable",
+            "http_status": None,
+            "response_time_ms": latency_ms,
+            "error": str(reason),
+        }

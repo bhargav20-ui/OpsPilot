@@ -1,0 +1,9 @@
+[project]
+name = "opspilot"
+version = "1.0.0"
+description = "Configurable system and website health monitoring CLI"
+requires-python = ">=3.10"
+dependencies = ["psutil>=5.9,<8"]
+
+[tool.unittest]
+start-directory = "tests"

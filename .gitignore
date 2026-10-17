@@ -1,24 +1,13 @@
-
-# Python virtual environment
 .venv/
 venv/
-
-# Python cache files
 __pycache__/
 *.py[cod]
-
-# Environment variables and secrets
 .env
 .env.*
-
-# Local editor settings
 .vscode/
-
-# Generated monitoring reports and logs
-reports/
-logs/
-
-# Test and coverage artifacts
+.pytest_cache/
 .coverage
 htmlcov/
-main_backup.py
+reports/
+logs/
+*.log

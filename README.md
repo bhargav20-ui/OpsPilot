@@ -1,156 +1,121 @@
-
 # OpsPilot
 
-OpsPilot is a lightweight Python-based system monitoring and website health-check tool. It monitors CPU and RAM usage, checks website availability, generates reports, and analyzes historical application logs.
+OpsPilot is a configurable Python monitoring CLI for local system resources and website availability. It collects live CPU/RAM metrics, checks configured HTTP endpoints, evaluates alert thresholds, emits timestamped JSON reports, appends CSV history, and records operational logs.
 
 ## Features
 
-- Displays operating system, computer name, and monitoring timestamp.
-- Monitors CPU usage, RAM usage, and available memory.
-- Generates resource warnings when CPU or RAM usage reaches configured thresholds.
-- Checks configured websites for availability using HTTP requests.
-- Measures website response time.
-- Distinguishes successful HTTP responses, HTTP errors, and connection failures.
-- Generates timestamped text reports.
-- Logs monitoring events for later analysis.
-- Analyzes historical logs, including log levels and website-check outcomes.
-- Supports one-time and recurring monitoring through a configurable interval.
-- Includes automated unit tests for website checks and alert logic.
-- Handles Ctrl+C to stop recurring monitoring gracefully.
-
-## Technologies Used
-
-- Python
-- psutil
-- urllib
-- argparse
-- unittest
-- Python logging
+- Live CPU, memory, hostname, OS, and timestamp metrics (`psutil`)
+- Configurable websites, resource thresholds, request timeout, and polling interval
+- HTTP status classification, latency measurement, and connection/timeout error handling
+- Console resource and website alerts
+- Timestamped JSON report per monitoring cycle
+- Append-only CSV summary history
+- Rotating application log file
+- One-shot mode or repeated polling with graceful Ctrl+C shutdown
+- Configuration validation and 10+ unit tests using mocked network/system responses
 
 ## Requirements
 
-- Python 3.10 or newer
-- Internet connection for live website checks
+- Python 3.10+
+- Internet access for live website checks
+- Windows, macOS, or Linux
 
-## Installation
-
-Clone the repository and navigate to the project directory.
-
-Create a virtual environment:
-
-```bash
-python -m venv .venv
-```
-
-Activate it in Windows PowerShell:
+## Quick start (Windows PowerShell)
 
 ```powershell
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install the dependencies:
-
-```powershell
 python -m pip install -r requirements.txt
-```
-
-## Configuration
-
-Edit `opspilot/config.py` to configure the websites to monitor and the resource alert thresholds.
-
-Example:
-
-```python
-WEBSITES = [
-    "https://www.google.com",
-    "https://github.com",
-    "https://www.python.org",
-]
-
-CPU_ALERT_THRESHOLD = 80.0
-RAM_ALERT_THRESHOLD = 85.0
-```
-
-Thresholds are expressed as percentages.
-
-## Usage
-
-### Run monitoring once
-
-```powershell
 python main.py
 ```
 
-### Display command-line help
+If PowerShell blocks activation, use `.\.venv\Scripts\python.exe` instead of `python` for the commands below.
+
+## Run modes
 
 ```powershell
+# One monitoring cycle
+python main.py
+
+# Print CLI options
 python main.py --help
+
+# Repeat every 60 seconds (minimum interval: 5 seconds)
+python main.py --interval 60
+
+# Use another JSON configuration file
+python main.py --config .\config.json
+
+# Override the configured interval for this run
+python main.py --interval 30
 ```
 
-### Run monitoring repeatedly
+Press `Ctrl+C` to stop recurring monitoring. The process only monitors while it is running; it is not installed as an operating-system service.
 
-Set the interval between monitoring cycles in seconds:
+## Configuration
 
-```powershell
-python main.py --interval 10
+Edit `config.json`. Website URLs and thresholds are configuration, not embedded in the monitoring logic.
+
+```json
+{
+  "websites": ["https://example.com", "https://www.python.org"],
+  "cpu_alert_threshold": 80.0,
+  "ram_alert_threshold": 85.0,
+  "request_timeout_seconds": 8,
+  "report_directory": "reports",
+  "log_file": "logs/opspilot.log",
+  "user_agent": "OpsPilot/1.0",
+  "interval_seconds": 0
+}
 ```
 
-This runs a monitoring cycle, waits 10 seconds, and then starts the next cycle. The interval must be at least 5 seconds.
+Thresholds are percentages from 0 to 100. `interval_seconds: 0` runs once. A repeating interval must be at least 5 seconds. Website checks use a finite timeout.
 
-Press `Ctrl+C` to stop recurring monitoring.
+## Output
 
-## Reports and Logs
+- `reports/report_<timestamp>.json`: detailed metrics, website outcomes, alerts, and summary for one cycle
+- `reports/history.csv`: one compact row per cycle
+- `logs/opspilot.log`: rotating application log
 
-- `reports/` stores generated timestamped text reports.
-- `logs/opspilot.log` stores application log entries used for historical log analysis.
+Generated reports and logs are ignored by Git. Historical logs can include earlier failures; read them as history, not as the status of the latest cycle.
 
-The log summary reports total entries, log-level counts, and website-check outcomes recorded in the logs. Historical failures may include earlier checks or test-generated events, not only the latest monitoring cycle.
-
-## Run Tests
-
-Run the complete test suite:
+## Tests
 
 ```powershell
 python -m unittest discover -v
 ```
 
-The tests cover website-check outcomes and resource and website alert logic. Website-check tests use mocked responses for the scenarios they test, so those tests do not require live website access.
+Tests use mocks for network and system data, so they do not depend on live websites.
 
-## Project Structure
+## Project layout
 
 ```text
 OpsPilot/
 ├── main.py
-├── main_backup.py
+├── config.json
+├── requirements.txt
+├── pyproject.toml
 ├── opspilot/
 │   ├── __init__.py
+│   ├── cli.py
 │   ├── config.py
 │   ├── system_monitor.py
 │   ├── health_checker.py
 │   ├── alerts.py
 │   ├── reporter.py
-│   ├── logger_config.py
-│   └── log_analyzer.py
-├── tests/
-│   ├── __init__.py
-│   └── test_alerts.py
-├── test_main.py
-├── requirements.txt
-├── reports/
-├── logs/
-├── .gitignore
-└── README.md
+│   └── logging_config.py
+└── tests/
+    ├── __init__.py
+    ├── test_config.py
+    ├── test_health_checker.py
+    ├── test_alerts.py
+    └── test_reporter.py
 ```
 
-The `.venv/` directory and generated files should generally remain local and should not be committed to Git. The structure above describes the main project files; additional local files may exist.
+## Scope and limitations
 
-## Future Improvements
+OpsPilot is a local monitoring CLI, not a hosted SaaS monitoring service. It does not currently send email/SMS notifications, run as a background service after the terminal closes, or provide a web dashboard. Website availability checks indicate whether a URL responded to a request from this machine; they do not guarantee full application health.
 
-- Export reports in CSV or JSON format.
-- Add a dashboard for viewing monitoring results.
-- Add optional notification channels.
-- Expand test coverage for reporting, configuration, and log analysis.
+## Security note
 
-## Disclaimer
-
-OpsPilot is an educational monitoring project. Website availability and response times may vary depending on network conditions and server behavior.
+Only configure URLs you are authorized to monitor. Keep credentials and secrets out of `config.json`; this version does not need credentials.
