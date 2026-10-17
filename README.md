@@ -1,121 +1,115 @@
-# OpsPilot
+# OpsPilot — System Automation & Monitoring Toolkit
 
-OpsPilot is a configurable Python monitoring CLI for local system resources and website availability. It collects live CPU/RAM metrics, checks configured HTTP endpoints, evaluates alert thresholds, emits timestamped JSON reports, appends CSV history, and records operational logs.
+OpsPilot is a configurable Python command-line toolkit for monitoring local system resources, checking website/API endpoint availability, recording operational events, raising rule-based alerts, and producing machine-readable reports.
 
 ## Features
 
-- Live CPU, memory, hostname, OS, and timestamp metrics (`psutil`)
-- Configurable websites, resource thresholds, request timeout, and polling interval
-- HTTP status classification, latency measurement, and connection/timeout error handling
-- Console resource and website alerts
-- Timestamped JSON report per monitoring cycle
-- Append-only CSV summary history
-- Rotating application log file
-- One-shot mode or repeated polling with graceful Ctrl+C shutdown
-- Configuration validation and 10+ unit tests using mocked network/system responses
+- **System monitoring:** live CPU and RAM utilization, available/total memory, hostname, operating system, and local timestamp.
+- **Website and API endpoint checks:** configurable HTTP/HTTPS GET checks, response status, latency measurement, finite request timeout, and handling of HTTP errors, timeouts, and connection failures. API checks currently test reachability and HTTP response, not business-level JSON correctness or authenticated workflows.
+- **Rule-based alerts:** configurable CPU/RAM thresholds, warnings for HTTP errors, and critical alerts for unreachable endpoints.
+- **Repeated execution:** one-shot mode or a configurable polling interval while the process remains running; Ctrl+C shuts it down cleanly.
+- **Structured logging:** timestamps, severity, endpoint outcomes, alerts, cycle summaries, and unexpected errors. Logs rotate at 1 MB and retain up to three backups.
+- **Log analysis:** summarize log levels, successful checks, HTTP errors, connection/timeout failures, alerts, unexpected cycle failures, and malformed lines.
+- **Reporting:** timestamped JSON report per cycle plus append-only CSV history.
+- **Configuration validation and automated tests:** invalid URLs, thresholds, intervals, and configuration files are rejected early; unit tests cover core behavior.
 
 ## Requirements
 
 - Python 3.10+
-- Internet access for live website checks
 - Windows, macOS, or Linux
+- Internet access for live endpoint checks
+- psutil runtime dependency; pytest is used for the test suite
 
 ## Quick start (Windows PowerShell)
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python main.py
-```
+    py -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install -e ".[test]"
+    python main.py
 
-If PowerShell blocks activation, use `.\.venv\Scripts\python.exe` instead of `python` for the commands below.
+If PowerShell blocks environment activation, use .\.venv\Scripts\python.exe to run the commands.
 
-## Run modes
+## Usage
 
-```powershell
-# One monitoring cycle
-python main.py
+    # Run one monitoring cycle
+    python main.py
 
-# Print CLI options
-python main.py --help
+    # Show command options
+    python main.py --help
 
-# Repeat every 60 seconds (minimum interval: 5 seconds)
-python main.py --interval 60
+    # Repeat checks every 60 seconds
+    python main.py --interval 60
 
-# Use another JSON configuration file
-python main.py --config .\config.json
+    # Use a custom JSON configuration
+    python main.py --config .\config.json
 
-# Override the configured interval for this run
-python main.py --interval 30
-```
+    # Analyze the configured application log and exit
+    python main.py --analyze-logs
 
-Press `Ctrl+C` to stop recurring monitoring. The process only monitors while it is running; it is not installed as an operating-system service.
+    # Run automated tests
+    python -m pytest -v
+
+    # Standard-library test runner is also supported
+    python -m unittest discover -v
+
+A configured interval_seconds value of 0 runs once. Repeated execution requires an interval of at least 5 seconds. The process must remain running for recurring checks; OpsPilot is not installed as an operating-system service and will not keep running after the terminal closes.
 
 ## Configuration
 
-Edit `config.json`. Website URLs and thresholds are configuration, not embedded in the monitoring logic.
+Edit config.json to choose URLs/endpoints, thresholds, timeouts, report output, logging output, and polling interval.
 
-```json
-{
-  "websites": ["https://example.com", "https://www.python.org"],
-  "cpu_alert_threshold": 80.0,
-  "ram_alert_threshold": 85.0,
-  "request_timeout_seconds": 8,
-  "report_directory": "reports",
-  "log_file": "logs/opspilot.log",
-  "user_agent": "OpsPilot/1.0",
-  "interval_seconds": 0
-}
-```
+    {
+      "websites": [
+        "https://www.google.com",
+        "https://github.com",
+        "https://www.python.org"
+      ],
+      "cpu_alert_threshold": 80.0,
+      "ram_alert_threshold": 85.0,
+      "request_timeout_seconds": 8,
+      "report_directory": "reports",
+      "log_file": "logs/opspilot.log",
+      "user_agent": "OpsPilot/1.0",
+      "interval_seconds": 0
+    }
 
-Thresholds are percentages from 0 to 100. `interval_seconds: 0` runs once. A repeating interval must be at least 5 seconds. Website checks use a finite timeout.
+For an API endpoint, add its full URL to the websites list, for example https://api.github.com/. This version checks HTTP reachability and status codes; it does not authenticate to private APIs or validate response payload schemas.
 
 ## Output
 
-- `reports/report_<timestamp>.json`: detailed metrics, website outcomes, alerts, and summary for one cycle
-- `reports/history.csv`: one compact row per cycle
-- `logs/opspilot.log`: rotating application log
+- reports/report_<timestamp>.json — system snapshot, endpoint results, alerts, and summary for each cycle.
+- reports/history.csv — one compact summary row per cycle.
+- logs/opspilot.log — rotating operational log used by the log-analysis command.
 
-Generated reports and logs are ignored by Git. Historical logs can include earlier failures; read them as history, not as the status of the latest cycle.
+Generated reports and logs are local runtime artifacts and should not be committed.
 
-## Tests
+## Continuous integration
 
-```powershell
-python -m unittest discover -v
-```
+GitHub Actions runs the pytest suite on pushes and pull requests using Python 3.10, 3.11, and 3.12.
 
-Tests use mocks for network and system data, so they do not depend on live websites.
+## Project structure
 
-## Project layout
-
-```text
-OpsPilot/
-├── main.py
-├── config.json
-├── requirements.txt
-├── pyproject.toml
-├── opspilot/
-│   ├── __init__.py
-│   ├── cli.py
-│   ├── config.py
-│   ├── system_monitor.py
-│   ├── health_checker.py
-│   ├── alerts.py
-│   ├── reporter.py
-│   └── logging_config.py
-└── tests/
-    ├── __init__.py
-    ├── test_config.py
-    ├── test_health_checker.py
-    ├── test_alerts.py
-    └── test_reporter.py
-```
+    OpsPilot/
+    ├── main.py
+    ├── config.json
+    ├── requirements.txt
+    ├── pyproject.toml
+    ├── opspilot/
+    │   ├── cli.py
+    │   ├── config.py
+    │   ├── system_monitor.py
+    │   ├── health_checker.py
+    │   ├── alerts.py
+    │   ├── reporter.py
+    │   ├── logging_config.py
+    │   └── log_analyzer.py
+    ├── tests/
+    └── .github/workflows/tests.yml
 
 ## Scope and limitations
 
-OpsPilot is a local monitoring CLI, not a hosted SaaS monitoring service. It does not currently send email/SMS notifications, run as a background service after the terminal closes, or provide a web dashboard. Website availability checks indicate whether a URL responded to a request from this machine; they do not guarantee full application health.
+OpsPilot is a local monitoring CLI, not a hosted monitoring service. Recurring checks run only while the program is running. Alerts are currently written to the console and application log; email/SMS delivery, a web dashboard, operating-system background-service installation, authenticated API workflows, and application-specific payload validation are not included. An HTTP success indicates that an endpoint responded successfully, not that every feature of the remote application is healthy.
 
-## Security note
+## Security
 
-Only configure URLs you are authorized to monitor. Keep credentials and secrets out of `config.json`; this version does not need credentials.
+Only configure endpoints you are authorized to monitor. Do not put credentials, tokens, or other secrets in config.json. This version uses unauthenticated GET requests.
