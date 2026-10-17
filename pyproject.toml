@@ -1,9 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "opspilot"
-version = "1.0.0"
-description = "Configurable system and website health monitoring CLI"
+version = "1.1.0"
+description = "Configurable system, website/API health monitoring and log analysis CLI"
 requires-python = ">=3.10"
 dependencies = ["psutil>=5.9,<8"]
 
-[tool.unittest]
-start-directory = "tests"
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+
+[tool.setuptools.packages.find]
+include = ["opspilot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
