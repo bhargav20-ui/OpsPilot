@@ -1,0 +1,14 @@
+{
+  "websites": [
+    "https://www.google.com",
+    "https://github.com",
+    "https://www.python.org"
+  ],
+  "cpu_alert_threshold": 80.0,
+  "ram_alert_threshold": 85.0,
+  "request_timeout_seconds": 8,
+  "report_directory": "reports",
+  "log_file": "logs/opspilot.log",
+  "user_agent": "OpsPilot/1.0",
+  "interval_seconds": 0
+}
