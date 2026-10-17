@@ -14,11 +14,11 @@ class LogAnalyzerTests(unittest.TestCase):
 
     def test_counts_structured_monitoring_events(self):
         content = (
-            "2026-10-17 10:00:00,000 | INFO | opspilot | Website check succeeded: https://example.com status=200 latency_ms=20\\n"
-            "2026-10-17 10:00:01,000 | WARNING | opspilot | Website returned HTTP error: https://bad.example status=503 latency_ms=30\\n"
-            "2026-10-17 10:00:02,000 | ERROR | opspilot | Website check failed: https://down.example error=timeout latency_ms=40\\n"
-            "2026-10-17 10:00:03,000 | WARNING | opspilot | Alert: RAM usage is high\\n"
-            "not a structured record\\n"
+            "2026-10-17 10:00:00,000 | INFO | opspilot | Website check succeeded: https://example.com status=200 latency_ms=20\n"
+            "2026-10-17 10:00:01,000 | WARNING | opspilot | Website returned HTTP error: https://bad.example status=503 latency_ms=30\n"
+            "2026-10-17 10:00:02,000 | ERROR | opspilot | Website check failed: https://down.example error=timeout latency_ms=40\n"
+            "2026-10-17 10:00:03,000 | WARNING | opspilot | Alert: RAM usage is high\n"
+            "not a structured record\n"
         )
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "opspilot.log"
